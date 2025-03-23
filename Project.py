@@ -93,32 +93,74 @@ class EyeContactAnalyzer:
             is_eye_contact = self.is_making_eye_contact(frame, face_landmarks)
             self.eye_contact_history.append(is_eye_contact)
             
-            # Calculate eye contact percentage
+            # Calculate eye contact percentage with smoothing
             eye_contact_percentage = sum(self.eye_contact_history) / len(self.eye_contact_history)
             
-            # Update eye contact duration
+            # Update eye contact duration with more precise timing
             current_time = time.time()
             if is_eye_contact:
                 self.eye_contact_duration = current_time - self.last_eye_contact_time
             else:
                 self.last_eye_contact_time = current_time
+                self.eye_contact_duration = 0
             
-            # Draw face mesh
+            # Draw face mesh with dynamic color based on eye contact
+            mesh_color = (0, 255, 0) if is_eye_contact else (0, 0, 255)
             self.mp_drawing.draw_landmarks(
                 image=frame,
                 landmark_list=face_landmarks,
                 connections=self.mp_face_mesh.FACEMESH_TESSELATION,
                 landmark_drawing_spec=None,
-                connection_drawing_spec=self.mp_drawing.DrawingSpec(color=(0, 255, 0), thickness=1, circle_radius=1)
+                connection_drawing_spec=self.mp_drawing.DrawingSpec(color=mesh_color, thickness=1, circle_radius=1)
             )
             
-            # Add text overlay
+            # Add text overlay with dynamic colors and improved formatting
             status = "Making Eye Contact" if is_eye_contact else "Not Making Eye Contact"
-            cv2.putText(frame, status, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.putText(frame, f"Duration: {self.eye_contact_duration:.1f}s", (10, 70),
-                       cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.putText(frame, f"Confidence: {eye_contact_percentage:.2%}", (10, 110),
-                       cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            status_color = (0, 255, 0) if is_eye_contact else (0, 0, 255)
+            
+            # Add background rectangle for better text visibility
+            text_size = cv2.getTextSize(status, cv2.FONT_HERSHEY_SIMPLEX, 1, 2)[0]
+            cv2.rectangle(frame, (5, 5), (text_size[0] + 10, 40), (0, 0, 0), -1)
+            cv2.putText(frame, status, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, status_color, 2)
+            
+            # Duration with background
+            duration_text = f"Duration: {self.eye_contact_duration:.1f}s"
+            duration_size = cv2.getTextSize(duration_text, cv2.FONT_HERSHEY_SIMPLEX, 1, 2)[0]
+            cv2.rectangle(frame, (5, 45), (duration_size[0] + 10, 80), (0, 0, 0), -1)
+            cv2.putText(frame, duration_text, (10, 70),
+                       cv2.FONT_HERSHEY_SIMPLEX, 1, status_color, 2)
+            
+            # Confidence with dynamic color based on percentage
+            confidence_text = f"Confidence: {eye_contact_percentage:.2%}"
+            confidence_size = cv2.getTextSize(confidence_text, cv2.FONT_HERSHEY_SIMPLEX, 1, 2)[0]
+            cv2.rectangle(frame, (5, 85), (confidence_size[0] + 10, 120), (0, 0, 0), -1)
+            
+            # Dynamic confidence color based on percentage
+            if eye_contact_percentage > 0.7:
+                confidence_color = (0, 255, 0)  # Green for high confidence
+            elif eye_contact_percentage > 0.4:
+                confidence_color = (0, 255, 255)  # Yellow for medium confidence
+            else:
+                confidence_color = (0, 0, 255)  # Red for low confidence
+                
+            cv2.putText(frame, confidence_text, (10, 110),
+                       cv2.FONT_HERSHEY_SIMPLEX, 1, confidence_color, 2)
+            
+            # Add a progress bar for confidence
+            bar_width = 200
+            bar_height = 20
+            bar_x = 10
+            bar_y = 130
+            
+            # Draw background bar
+            cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_width, bar_y + bar_height), (0, 0, 0), -1)
+            
+            # Draw confidence bar
+            confidence_width = int(bar_width * eye_contact_percentage)
+            cv2.rectangle(frame, (bar_x, bar_y), (bar_x + confidence_width, bar_y + bar_height), confidence_color, -1)
+            
+            # Draw border
+            cv2.rectangle(frame, (bar_x, bar_y), (bar_x + bar_width, bar_y + bar_height), (255, 255, 255), 1)
         
         return frame
 
