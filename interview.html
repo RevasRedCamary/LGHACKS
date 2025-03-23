@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - Eye Contact Analyzer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f2f5;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .navbar {
+            background-color: #1a73e8;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .navbar-brand {
+            color: white;
+            font-size: 1.5em;
+            font-weight: bold;
+            text-decoration: none;
+        }
+        .navbar-links a {
+            color: white;
+            text-decoration: none;
+            margin-left: 20px;
+            padding: 5px 10px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .navbar-links a:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .container {
+            flex: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        h1 {
+            color: #1a73e8;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .video-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        .video-feed {
+            max-width: 800px;
+            width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin: 0 auto;
+        }
+        .instructions {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px auto;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .instructions h2 {
+            color: #1a73e8;
+            margin-top: 0;
+            text-align: center;
+        }
+        .instructions ul {
+            text-align: left;
+            line-height: 1.6;
+            margin: 0;
+            padding-left: 20px;
+        }
+        .start-button {
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2em;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin: 20px 0;
+        }
+        .start-button:hover {
+            background-color: #1557b0;
+        }
+        .question-container {
+            display: none;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px auto;
+            max-width: 800px;
+            width: 100%;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .question-container.active {
+            display: block;
+        }
+        .question {
+            font-size: 1.2em;
+            color: #333;
+            margin: 10px 0;
+            padding: 10px;
+            border-left: 4px solid #1a73e8;
+            background-color: #f8f9fa;
+            border-radius: 0 5px 5px 0;
+        }
+        .next-button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1em;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+        .next-button:hover {
+            background-color: #218838;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            justify-content: center;
+        }
+        .speak-button {
+            background-color: #17a2b8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1em;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .speak-button:hover {
+            background-color: #138496;
+        }
+        .speak-button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="{{ url_for('index') }}" class="navbar-brand">Eye Contact Analyzer</a>
+        <div class="navbar-links">
+            <a href="{{ url_for('index') }}">Home</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1>{{ title }}</h1>
+        
+        <div class="video-container">
+            <img src="{{ url_for('video_feed') }}" alt="Video Feed" class="video-feed">
+            
+            <div class="instructions">
+                <h2>Instructions</h2>
+                <ul>
+                    {% for instruction in instructions %}
+                    <li>{{ instruction }}</li>
+                    {% endfor %}
+                </ul>
+                <button class="start-button" onclick="startInterview()">Start Interview</button>
+            </div>
+
+            <div class="question-container" id="questionContainer">
+                <h2>Interview Questions</h2>
+                <div id="questions"></div>
+                <div class="controls">
+                    <button class="next-button" onclick="nextQuestion()">Next Question</button>
+                    <button id="speakButton" class="speak-button" onclick="speakCurrentQuestion()">Repeat Question</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentQuestions = [];
+        let currentQuestionIndex = 0;
+        let speechSynthesis = window.speechSynthesis;
+        let speaking = false;
+
+        function speak(text) {
+            // Cancel any ongoing speech
+            speechSynthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 0.9; // Slightly slower rate for better clarity
+            utterance.pitch = 1;
+            utterance.volume = 1;
+            
+            speechSynthesis.speak(utterance);
+            speaking = true;
+            
+            utterance.onend = () => {
+                speaking = false;
+                document.getElementById('speakButton').disabled = false;
+            };
+        }
+
+        function startInterview() {
+            // Fetch questions from the server
+            fetch(`/get-questions/{{ interview_type }}`)
+                .then(response => response.json())
+                .then(data => {
+                    currentQuestions = data.questions;
+                    currentQuestionIndex = 0;
+                    document.getElementById('questionContainer').classList.add('active');
+                    showQuestion();
+                });
+        }
+
+        function showQuestion() {
+            const questionsDiv = document.getElementById('questions');
+            questionsDiv.innerHTML = '';
+            
+            if (currentQuestionIndex < currentQuestions.length) {
+                const questionDiv = document.createElement('div');
+                questionDiv.className = 'question';
+                questionDiv.textContent = currentQuestions[currentQuestionIndex];
+                questionsDiv.appendChild(questionDiv);
+                
+                // Automatically speak the question
+                speak(currentQuestions[currentQuestionIndex]);
+            } else {
+                questionsDiv.innerHTML = '<div class="question">Interview completed! Click "Home" to start a new interview.</div>';
+                document.querySelector('.next-button').style.display = 'none';
+                document.getElementById('speakButton').style.display = 'none';
+            }
+        }
+
+        function nextQuestion() {
+            if (currentQuestionIndex < currentQuestions.length) {
+                currentQuestionIndex++;
+                showQuestion();
+            }
+        }
+
+        function speakCurrentQuestion() {
+            if (currentQuestionIndex < currentQuestions.length) {
+                const speakButton = document.getElementById('speakButton');
+                speakButton.disabled = true;
+                speak(currentQuestions[currentQuestionIndex]);
+            }
+        }
+    </script>
+</body>
+</html> 
